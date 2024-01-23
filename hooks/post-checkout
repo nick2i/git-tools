@@ -1,0 +1,22 @@
+#!/bin/sh
+
+## Configurables:
+# The directory where the log is stored
+log_dir="$(git rev-parse --show-toplevel)/.mess"
+# The log file
+log_file="$log_dir/git-checkouts.log"
+
+
+# Make the directory if it does not exist
+mkdir -p "$log_dir"
+
+# Get the name of the checked-out branch
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+
+# Get the current datetime
+current_date=$(date "+%Y-%m-%d %H:%M:%S")
+
+# Append the branch name & datetime to log file
+echo "$current_date: $branch_name" >> "$log_file"
+
+exit 0
