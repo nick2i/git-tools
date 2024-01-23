@@ -1,0 +1,95 @@
+#!/bin/bash
+
+EXCEPTIONS_FILE="$(git rev-parse --show-toplevel)/.mess/s/stale-branches-exceptions.conf"
+
+list_stale_branches() {
+    cutoff_date=$(date -d "2 weeks ago" "+%Y-%m-%d")
+    log_dir="$(git rev-parse --show-toplevel)/.mess"
+    log_file="$log_dir/git-checkouts.log"
+
+    # Ensure the log file exists
+    touch "$log_file"
+
+    # Get a list of all local branches
+    all_branches=$(git branch | sed 's/* //g' | sed 's/ //g')
+
+    # Reverse the log file and extract the most recent checkout for each branch
+    recent_checkouts=$(tac "$log_file" | awk -F': ' '!seen[$2]++')
+
+    # Loop through all branches to determine if they are stale
+    for branch in $all_branches; do
+        # Check if branch is in the recent_checkouts list and not older than cutoff date
+        if ! echo "$recent_checkouts" | grep -q "$branch" || \
+           ! echo "$recent_checkouts" | grep "$branch" | cut -d' ' -f1 | grep -q -v "^$cutoff_date"; then
+            echo "$branch"
+        fi
+    done | sort | uniq
+}
+
+# Function to delete or forcefully delete stale branches
+delete_stale_branches() {
+    local force_delete=$1
+    local delete_cmd="git branch -d"
+
+    if [[ "$force_delete" == "true" ]]; then
+        delete_cmd="git branch -D"
+    fi
+
+    if [[ -f "$EXCEPTIONS_FILE" ]]; then
+        echo "$EXCEPTIONS_FILE exists"
+        source "$EXCEPTIONS_FILE"
+    else
+        echo "$EXCEPTIONS_FILE does not exist"
+        declare -A exceptions=()
+    fi
+
+    local stale_branches=$(list_stale_branches)
+
+    for branch in $stale_branches; do
+        # skip exceptions
+        if [[ -n "${exceptions[$branch]}" ]]; then
+            echo "Skipping exception: $branch"
+            continue
+        fi
+
+        if [[ "$branch" != "" ]]; then
+            echo "Deleting branch: $branch"
+            echo "just kidding this is a test"
+            #$delete_cmd "$branch" || echo "Could not delete $branch. It might not be fully merged."
+        fi
+    done
+}
+
+# Parse command line args
+force_flag=""
+list_flag=""
+for arg in "$@"
+do
+    case $arg in
+        -d|--delete)
+            delete_flag="true"
+            ;;
+        --force)
+            force_flag="true"
+            ;;
+        -l|--list)
+            list_flag="true"
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Usage: $0 [--list] | [-d|--delete [--force]]"
+            exit 1
+            ;;
+    esac
+done
+
+#if [[ "$list_flag" == "true" || ( -z "$delete_flag" && -z "$force_flag" ) ]]; then
+if [[ "$list_flag" == "true" || ( -z "$delete_flag" ) ]]; then
+    list_stale_branches
+elif [[ "$delete_flag" == "true" ]]; then
+    delete_stale_branches $force_flag
+else
+    echo "Usage: $0 [--list] | [-d|--delete [--force]]"
+    exit 1
+fi
+
