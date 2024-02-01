@@ -54,8 +54,7 @@ delete_stale_branches() {
 
         if [[ "$branch" != "" ]]; then
             echo "Deleting branch: $branch"
-            echo "just kidding this is a test"
-            #$delete_cmd "$branch" || echo "Could not delete $branch. It might not be fully merged."
+            $delete_cmd "$branch" || echo "Could not delete $branch. It might not be fully merged."
         fi
     done
 }
