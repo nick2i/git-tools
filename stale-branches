@@ -3,7 +3,8 @@
 EXCEPTIONS_FILE="$(git rev-parse --show-toplevel)/.mess/s/stale-branches-exceptions.conf"
 
 list_stale_branches() {
-    cutoff_date=$(date -d "2 weeks ago" "+%Y-%m-%d")
+    #cutoff_date=$(date -d "2 weeks ago" "+%Y-%m-%d")
+    cutoff_date=$(date -d "1 day ago" "+%Y-%m-%d")
     log_dir="$(git rev-parse --show-toplevel)/.mess"
     log_file="$log_dir/git-checkouts.log"
 
@@ -11,16 +12,14 @@ list_stale_branches() {
     touch "$log_file"
 
     # Get a list of all local branches
-    all_branches=$(git branch | sed 's/* //g' | sed 's/ //g')
+    all_branches=$(git branch --format "%(refname:short)")
 
     # Reverse the log file and extract the most recent checkout for each branch
-    recent_checkouts=$(tac "$log_file" | awk -F': ' '!seen[$2]++')
+    recent_checkouts=$(tac "$log_file" | awk -F': ' '!seen[$2]++ && $1 >= cutoff {print $2}')
 
     # Loop through all branches to determine if they are stale
     for branch in $all_branches; do
-        # Check if branch is in the recent_checkouts list and not older than cutoff date
-        if ! echo "$recent_checkouts" | grep -q "$branch" || \
-           ! echo "$recent_checkouts" | grep "$branch" | cut -d' ' -f1 | grep -q -v "^$cutoff_date"; then
+        if ! echo "$recent_checkouts" | grep -q "^$branch$"; then
             echo "$branch"
         fi
     done | sort | uniq
