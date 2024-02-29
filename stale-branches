@@ -3,8 +3,7 @@
 EXCEPTIONS_FILE="$(git rev-parse --show-toplevel)/.mess/s/stale-branches-exceptions.conf"
 
 list_stale_branches() {
-    #cutoff_date=$(date -d "2 weeks ago" "+%Y-%m-%d")
-    cutoff_date=$(date -d "1 day ago" "+%Y-%m-%d")
+    cutoff_date=$(date -d "2 weeks ago" "+%Y-%m-%d %H:%M:%S")
     log_dir="$(git rev-parse --show-toplevel)/.mess"
     log_file="$log_dir/git-checkouts.log"
 
@@ -14,15 +13,21 @@ list_stale_branches() {
     # Get a list of all local branches
     all_branches=$(git branch --format "%(refname:short)")
 
-    # Reverse the log file and extract the most recent checkout for each branch
-    recent_checkouts=$(tac "$log_file" | awk -F': ' '!seen[$2]++ && $1 >= cutoff {print $2}')
+    cutoff_ts=$(date -d "$cutoff_datetime" "+%s")
+    recent_checkouts=$(while read -r line; do
+        log_datetime=$(echo "$line" | awk -F': ' '{print $1}')
+        branch_name=$(echo "$line" | awk -F': ' '{print $2}')
+        log_ts=$(date -d "$log_datetime" "+%s")
+        if [ "$log_ts" -gt "$cutoff_ts" ]; then
+            echo "$branch_name"
+        fi
+    done < "$log_file" | sort | uniq )
 
-    # Loop through all branches to determine if they are stale
     for branch in $all_branches; do
         if ! echo "$recent_checkouts" | grep -q "^$branch$"; then
             echo "$branch"
         fi
-    done | sort | uniq
+    done
 }
 
 # Function to delete or forcefully delete stale branches
