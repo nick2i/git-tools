@@ -1,0 +1,48 @@
+#!/bin/bash
+
+last_twenty_branches_all() {
+    log_dir="$(git rev-parse --show-toplevel)/.mess"
+    log_file="$log_dir/git-checkouts.log"
+
+    touch "$log_file"
+
+    tac "$log_file" |
+        awk -F': ' '{print $2}' |
+        head -n 20 |
+        tac
+}
+
+last_twenty_branches() {
+    log_dir="$(git rev-parse --show-toplevel)/.mess"
+    log_file="$log_dir/git-checkouts.log"
+
+    touch "$log_file"
+
+    tac "$log_file" |
+        awk -F': ' '{print $2}' |
+        awk '!seen[$1]++' |
+        head -n 20 |
+        tac
+}
+
+all_flag=""
+for arg in "$@"
+do
+    case $arg in
+        -a|--all)
+            all_flag="true"
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Usage: $0 [-a|--all]"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$all_flag" == "true" ]]; then
+    last_twenty_branches_all
+else
+    last_twenty_branches
+fi
+
